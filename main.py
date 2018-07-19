@@ -10,7 +10,6 @@ def ignore_warn(*args, **kwargs):
 warnings.warn = ignore_warn #ignore annoying warning (from sklearn and seaborn)
 from scipy import stats
 from scipy.stats import norm, skew #for some statistics
-from sklearn.preprocessing import LabelEncoder
 # Models
 from sklearn.linear_model import ElasticNet, Lasso,  BayesianRidge, LassoLarsIC
 from sklearn.ensemble import RandomForestRegressor,  GradientBoostingRegressor
@@ -56,30 +55,10 @@ all_data = dh.concat_dataframes(train, test)
 all_data.drop(['SalePrice'], axis=1, inplace=True)
 
 # Tratando missing values
-categorical_columns = ["PoolQC", "MiscFeature", "Alley", "Fence", "FireplaceQu", "MasVnrType", "GarageType", "GarageFinish", "GarageQual", "GarageCond", "BsmtQual", "BsmtCond", "BsmtExposure", "BsmtFinType1", "BsmtFinType2", "MSSubClass"]
-all_data = dh.fill_na_of_df_with_none_for_columns(all_data, categorical_columns)
+all_data = dh.treat_missing_data(all_data)
 
-all_data["LotFrontage"] = all_data.groupby("Neighborhood")["LotFrontage"].transform(
-    lambda x: x.fillna(x.median()))
-for col in ('GarageYrBlt', 'GarageArea', 'GarageCars'):
-    all_data[col] = all_data[col].fillna(0)
-for col in ('BsmtFinSF1', 'BsmtFinSF2', 'BsmtUnfSF','TotalBsmtSF', 'BsmtFullBath', 'BsmtHalfBath'):
-    all_data[col] = all_data[col].fillna(0)
-all_data["MasVnrArea"] = all_data["MasVnrArea"].fillna(0)
-all_data['MSZoning'] = all_data['MSZoning'].fillna(all_data['MSZoning'].mode()[0])
-all_data = all_data.drop(['Utilities'], axis=1)
-all_data["Functional"] = all_data["Functional"].fillna("Typ")
-all_data['Electrical'] = all_data['Electrical'].fillna(all_data['Electrical'].mode()[0])
-all_data['KitchenQual'] = all_data['KitchenQual'].fillna(all_data['KitchenQual'].mode()[0])
-all_data['Exterior1st'] = all_data['Exterior1st'].fillna(all_data['Exterior1st'].mode()[0])
-all_data['Exterior2nd'] = all_data['Exterior2nd'].fillna(all_data['Exterior2nd'].mode()[0])
-all_data['SaleType'] = all_data['SaleType'].fillna(all_data['SaleType'].mode()[0])
-
-# Adequando valores numéricos para string pois são prticamente categóricos
-all_data['MSSubClass'] = all_data['MSSubClass'].apply(str)
-all_data['OverallCond'] = all_data['OverallCond'].astype(str)
-all_data['YrSold'] = all_data['YrSold'].astype(str)
-all_data['MoSold'] = all_data['MoSold'].astype(str)
+# Adequando valores numéricos para string pois são praticamente categóricos
+all_data = dh.transform_numeric_to_categorical(all_data)
 
 # Label encoding
 cols = ('FireplaceQu', 'BsmtQual', 'BsmtCond', 'GarageQual', 'GarageCond', 
@@ -88,10 +67,7 @@ cols = ('FireplaceQu', 'BsmtQual', 'BsmtCond', 'GarageQual', 'GarageCond',
         'LotShape', 'PavedDrive', 'Street', 'Alley', 'CentralAir', 'MSSubClass', 'OverallCond', 
         'YrSold', 'MoSold')
 # process columns, apply LabelEncoder to categorical features
-for c in cols:
-    lbl = LabelEncoder() 
-    lbl.fit(list(all_data[c].values)) 
-    all_data[c] = lbl.transform(list(all_data[c].values))
+all_data = dh.label_encoding(all_data, cols)
 
 # Adicionando feature
 all_data['TotalSF'] = all_data['TotalBsmtSF'] + all_data['1stFlrSF'] + all_data['2ndFlrSF']
