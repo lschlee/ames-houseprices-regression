@@ -42,7 +42,7 @@ dh.remove_outliers(train)
 
 
 # Normalizando SalePrice
-np.log1p(train["SalePrice"])
+train["SalePrice"] = np.log1p(train["SalePrice"])
 
 y_train = train.SalePrice.values
 
