@@ -19,7 +19,6 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, cross_val_score, train_test_split
 from sklearn.metrics import mean_squared_error
-import transformations as tf
 import df_helper as dh
 
 
@@ -43,7 +42,7 @@ dh.remove_outliers(train)
 
 
 # Normalizando SalePrice
-tf.transform_with_log1p(train, "SalePrice")
+np.log1p(train["SalePrice"])
 
 y_train = train.SalePrice.values
 
@@ -75,10 +74,12 @@ all_data['TotalSF'] = all_data['TotalBsmtSF'] + all_data['1stFlrSF'] + all_data[
 #Encontrando valores enviesados 
 numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
 
+
 # Check the skew of all numerical features
 skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
-skewness = pd.DataFrame({'Skew' :skewed_feats})
-skewness = skewness[abs(skewness) > 0.75]
+skewness_upper = pd.DataFrame({'Skew' :skewed_feats[skewed_feats > 0.75]})
+skewness_under = pd.DataFrame({'Skew' :skewed_feats[skewed_feats < -0.75]})
+skewness = pd.concat((skewness_upper, skewness_under))
 
 # Normalizando valores enviesados
 from scipy.special import boxcox1p

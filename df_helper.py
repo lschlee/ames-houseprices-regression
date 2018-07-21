@@ -55,4 +55,3 @@ def label_encoding(all_data, cols):
        lbl.fit(list(all_data[c].values)) 
        all_data[c] = lbl.transform(list(all_data[c].values))
     return all_data
-
