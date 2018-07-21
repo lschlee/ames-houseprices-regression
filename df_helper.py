@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 def remove_outliers(data_frame):
-    data_frame.drop(data_frame[(data_frame['GrLivArea']>4000) & (data_frame['SalePrice']<300000)].index)
+    return data_frame.drop(data_frame[(data_frame['GrLivArea']>4000) & (data_frame['SalePrice']<300000)].index)
 
 def concat_dataframes(df1, df2):
     return pd.concat((df1, df2)).reset_index(drop=True)
