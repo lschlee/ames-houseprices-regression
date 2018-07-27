@@ -1,15 +1,15 @@
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import matplotlib.pyplot as plt  # Matlab-style plotting
+import numpy as np
+import pandas as pd 
+import matplotlib.pyplot as plt  
 import seaborn as sns
 color = sns.color_palette()
 sns.set_style('darkgrid')
 import warnings
 def ignore_warn(*args, **kwargs):
     pass
-warnings.warn = ignore_warn #ignore annoying warning (from sklearn and seaborn)
+warnings.warn = ignore_warn
 from scipy import stats
-from scipy.stats import norm, skew #for some statistics
+from scipy.stats import norm, skew 
 # Models
 from sklearn.linear_model import ElasticNet, Lasso,  BayesianRidge, LassoLarsIC
 from sklearn.ensemble import RandomForestRegressor,  GradientBoostingRegressor
@@ -26,16 +26,16 @@ import df_helper as dh
 
 
 
-pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x)) #Limiting floats output to 3 decimal points
+pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x)) # Limitando os floats
 
 train = pd.read_csv('.\\data\\train.csv')
 test = pd.read_csv('.\\data\\test.csv')
 
-#Save the 'Id' column
+#Salvando os Ids para a posterior submissão no Kaggle
 train_ID = train['Id']
 test_ID = test['Id']
 
-#Now drop the  'Id' colum since it's unnecessary for  the prediction process.
+#Removendo Id porque não é necessário pra predição
 train.drop("Id", axis = 1, inplace = True)
 test.drop("Id", axis = 1, inplace = True)
 
@@ -67,7 +67,7 @@ cols = ('FireplaceQu', 'BsmtQual', 'BsmtCond', 'GarageQual', 'GarageCond',
         'BsmtFinType2', 'Functional', 'Fence', 'BsmtExposure', 'GarageFinish', 'LandSlope',
         'LotShape', 'PavedDrive', 'Street', 'Alley', 'CentralAir', 'MSSubClass', 'OverallCond', 
         'YrSold', 'MoSold')
-# process columns, apply LabelEncoder to categorical features
+
 all_data = dh.label_encoding(all_data, cols)
 
 # Adicionando feature
@@ -75,13 +75,6 @@ all_data['TotalSF'] = all_data['TotalBsmtSF'] + all_data['1stFlrSF'] + all_data[
 
 #Encontrando valores enviesados 
 numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
-
-
-# Check the skew of all numerical features
-# skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
-# skewness_upper = pd.DataFrame({'Skew' :skewed_feats[skewed_feats > 0.75]})
-# skewness_under = pd.DataFrame({'Skew' :skewed_feats[skewed_feats < -0.75]})
-# skewness = pd.concat((skewness_upper, skewness_under))
 
 
 # Normalizando valores enviesados
@@ -169,6 +162,7 @@ model_lgb.fit(train, y_train)
 lgb_train_pred = model_lgb.predict(train)
 lgb_pred = np.expm1(model_lgb.predict(test))
 print(rmsle(y_train, lgb_train_pred))
+
 
 print(rmsle(y_train, xgb_train_pred * 0.25 + lgb_train_pred * 0.25 + ENet_train_pred * 0.25 + lasso_train_pred * 0.25))
 sub = pd.DataFrame()
