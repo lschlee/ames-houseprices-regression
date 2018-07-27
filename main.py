@@ -19,6 +19,8 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, cross_val_score, train_test_split
 from sklearn.metrics import mean_squared_error
+import xgboost as xgb
+import lightgbm as lgb
 import df_helper as dh
 
 
@@ -76,14 +78,16 @@ numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
 
 
 # Check the skew of all numerical features
-skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
-skewness_upper = pd.DataFrame({'Skew' :skewed_feats[skewed_feats > 0.75]})
-skewness_under = pd.DataFrame({'Skew' :skewed_feats[skewed_feats < -0.75]})
-skewness = pd.concat((skewness_upper, skewness_under))
+# skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
+# skewness_upper = pd.DataFrame({'Skew' :skewed_feats[skewed_feats > 0.75]})
+# skewness_under = pd.DataFrame({'Skew' :skewed_feats[skewed_feats < -0.75]})
+# skewness = pd.concat((skewness_upper, skewness_under))
+
 
 # Normalizando valores enviesados
 from scipy.special import boxcox1p
-skewed_features = skewness.index
+#skewed_features = skewness.index
+skewed_features = ['1stFlrSF','GrLivArea','LotArea','TotalSF']
 lam = 0.15
 for feat in skewed_features:
     all_data[feat] = boxcox1p(all_data[feat], lam)
@@ -95,7 +99,7 @@ all_data = pd.get_dummies(all_data)
 train = all_data[:ntrain]
 test = all_data[ntrain:]
 
-#Validation function
+#Função de validação
 n_folds = 5
 
 def rmsle_cv(model):
@@ -107,16 +111,67 @@ def rmsle(y, y_pred):
     return np.sqrt(mean_squared_error(y, y_pred))
 
 ENet = make_pipeline(RobustScaler(), ElasticNet(alpha=0.0005, l1_ratio=.9, random_state=3))
-score = rmsle_cv(ENet)
-print("ElasticNet score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+lasso = make_pipeline(RobustScaler(), Lasso(alpha =0.0005, random_state=1))
+
+KRR = KernelRidge(alpha=0.6, kernel='polynomial', degree=2, coef0=2.5)
+
+GBoost = GradientBoostingRegressor(n_estimators=3000, learning_rate=0.05,
+                                   max_depth=4, max_features='sqrt',
+                                   min_samples_leaf=15, min_samples_split=10, 
+                                   loss='huber', random_state =5)
+
+model_xgb = xgb.XGBRegressor(colsample_bytree=0.4603, gamma=0.0468, 
+                             learning_rate=0.05, max_depth=3, 
+                             min_child_weight=1.7817, n_estimators=2200,
+                             reg_alpha=0.4640, reg_lambda=0.8571,
+                             subsample=0.5213, silent=1,
+                             random_state =7, nthread = -1)
+
+model_lgb = lgb.LGBMRegressor(objective='regression',num_leaves=5,
+                              learning_rate=0.05, n_estimators=720,
+                              max_bin = 55, bagging_fraction = 0.8,
+                              bagging_freq = 5, feature_fraction = 0.2319,
+                              feature_fraction_seed=9, bagging_seed=9,
+                              min_data_in_leaf =6, min_sum_hessian_in_leaf = 11)
+
+# score = rmsle_cv(ENet)
+# print("ElasticNet score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+# score = rmsle_cv(lasso)
+# print("\nLasso score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+# score = rmsle_cv(KRR)
+# print("Kernel Ridge score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+# score = rmsle_cv(model_xgb)
+# print("Xgboost score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+# score = rmsle_cv(model_lgb)
+# print("LGBM score: {:.4f} ({:.4f})\n" .format(score.mean(), score.std()))
 
 ENet.fit(train, y_train)
-ENet_prediction = ENet.predict(train.values)
-print(rmsle(y_train, ENet_prediction))
+ENet_train_pred = ENet.predict(train)
+ENet_pred = np.expm1(ENet.predict(test))
+print(rmsle(y_train, ENet_train_pred))
 
-ENet_test_prediction = np.expm1(ENet.predict(test.values))
+lasso.fit(train, y_train)
+lasso_train_pred = lasso.predict(train)
+lasso_pred = np.expm1(lasso.predict(test))
+print(rmsle(y_train, lasso_train_pred))
 
+model_xgb.fit(train, y_train)
+xgb_train_pred = model_xgb.predict(train)
+xgb_pred = np.expm1(model_xgb.predict(test))
+print(rmsle(y_train, xgb_train_pred))
+
+model_lgb.fit(train, y_train)
+lgb_train_pred = model_lgb.predict(train)
+lgb_pred = np.expm1(model_lgb.predict(test))
+print(rmsle(y_train, lgb_train_pred))
+
+print(rmsle(y_train, xgb_train_pred * 0.25 + lgb_train_pred * 0.25 + ENet_train_pred * 0.25 + lasso_train_pred * 0.25))
 sub = pd.DataFrame()
 sub['Id'] = test_ID
-sub['SalePrice'] = ENet_test_prediction
+sub['SalePrice'] = lgb_pred * 0.25 + xgb_pred * 0.25 + ENet_pred * 0.25 + lasso_pred * 0.25
 sub.to_csv('data\\submission.csv',index=False)
